@@ -1,72 +1,52 @@
 const { cmd } = require('../command');
-const fs = require('fs');
-const path = require('path');
-const Jimp = require('jimp');
-const QrCode = require('qrcode-reader');
-const axios = require('axios'); // Add axios for downloading the image
+const axios = require('axios');
+const FormData = require('form-data');
 
 cmd({
-  pattern: "readqr",
-  react: "🤖",
-  alias: ["scanqr", "qrread"],
-  desc: "Read QR code from an image.",
-  category: "utility",
-  use: ".readqr (reply to an image containing a QR code)",
-  filename: __filename,
-}, async (conn, mek, msg, { from, reply, quoted }) => {
+  pattern: 'readqr',
+  alias: ['scanqr'],
+  react: '📷',
+  desc: 'Read QR code from an image using ZXing API.',
+  category: 'tools',
+  filename: __filename
+}, async (conn, mek, msg, { from, reply, quoted, args }) => {
   try {
-    if (!quoted) {
-      return reply("❌ Please reply to an image containing a QR code.");
+    // Check if the message contains an image
+    if (!quoted || !quoted.image) {
+      return reply('❌ Please reply to an image containing a QR code.');
     }
 
-    // Debug: Log the quoted message to inspect its structure
-    console.log("Quoted Message:", quoted);
+    // Download the image
+    const buffer = await conn.downloadMediaMessage(quoted);
 
-    // Check if the quoted message is an image
-    const isImage = quoted.imageMessage || quoted.message?.imageMessage;
-    if (!isImage) {
-      return reply("❌ The replied message is not an image. Please reply to an image containing a QR code.");
-    }
+    // Create a FormData object
+    const form = new FormData();
+    form.append('file', buffer, { filename: 'qr_code.jpg' });
 
-    // Get the image URL
-    const imageUrl = quoted.imageMessage?.url || quoted.message?.imageMessage?.url;
-    if (!imageUrl) {
-      return reply("❌ Unable to retrieve the image URL.");
-    }
-
-    // Download the image using axios
-    const imagePath = path.join(__dirname, `temp_qr_${Date.now()}.jpg`);
-    const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    fs.writeFileSync(imagePath, response.data);
-
-    // Read the image using Jimp
-    const image = await Jimp.read(fs.readFileSync(imagePath));
-
-    // Decode the QR code
-    const qr = new QrCode();
-    const qrData = await new Promise((resolve, reject) => {
-      qr.callback = (err, value) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(value);
-        }
-      };
-      qr.decode(image.bitmap);
+    // Send the image to the ZXing API
+    const response = await axios.post('https://zxing.org/w/decode', form, {
+      headers: {
+        ...form.getHeaders(),
+      },
     });
 
-    // Delete the temporary image file
-    fs.unlinkSync(imagePath);
+    // Extract the decoded text from the response
+    const decodedText = response.data.text;
 
-    // Send the QR code data
-    if (qrData.result) {
-      reply(`✅ *QR Code Data:*\n\n${qrData.result}`);
-    } else {
-      reply("❌ No QR code found in the image.");
+    // Check if the decoded text is valid
+    if (!decodedText) {
+      return reply('❌ No QR code found in the image.');
     }
 
+    // Reply with the decoded text
+    await reply(`✅ Decoded QR Code:\n\n${decodedText}`);
+
   } catch (error) {
-    console.error("Error reading QR code:", error);
-    reply("❌ Failed to read the QR code. Please ensure the image contains a valid QR code.");
+    console.error('Error reading QR code:', error);
+    if (error.response && error.response.status === 400) {
+      reply('❌ No QR code found in the image.');
+    } else {
+      reply('❌ An error occurred while reading the QR code. Please try again.');
+    }
   }
 });
