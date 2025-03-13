@@ -2,43 +2,47 @@ const axios = require("axios");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "mediafire",
-  alias: ["mfire", "mfdownload"],
+  pattern: "gdrive",
+  alias: ["gdrivedownload", "gdownloader"],
   react: '📥',
-  desc: "Download files from MediaFire.",
-  category: "download",
-  use: ".mediafire <MediaFire URL>",
+  desc: "Download files from Google Drive.",
+  category: "tools",
+  use: ".gdrive <Google Drive URL>",
   filename: __filename
 }, async (conn, mek, m, { from, reply, args }) => {
   try {
-    // Check if the user provided a MediaFire URL
-    const mediafireUrl = args[0];
-    if (!mediafireUrl || !mediafireUrl.includes("mediafire.com")) {
-      return reply('Please provide a valid MediaFire URL. Example: `.mediafire https://mediafire.com/...`');
+    // Check if the user provided a Google Drive URL
+    const gdriveUrl = args[0];
+    if (!gdriveUrl || !gdriveUrl.includes("drive.google.com")) {
+      return reply('Please provide a valid Google Drive URL. Example: `.gdrive https://drive.google.com/...`');
     }
 
     // Add a reaction to indicate processing
     await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
-    // Prepare the Velyn API URL
-    const apiUrl = `https://velyn.vercel.app/api/downloader/mediafire?url=${encodeURIComponent(mediafireUrl)}`;
+    // Prepare the NexOracle API URL
+    const apiUrl = `https://api.nexoracle.com/downloader/gdrive`;
+    const params = {
+      apikey: 'free_key@maher_apis', // Replace with your API key if needed
+      url: gdriveUrl, // Google Drive URL
+    };
 
-    // Call the Velyn API using GET
-    const response = await axios.get(apiUrl);
+    // Call the NexOracle API using GET
+    const response = await axios.get(apiUrl, { params });
 
     // Check if the API response is valid
-    if (!response.data || !response.data.status || !response.data.data) {
+    if (!response.data || response.data.status !== 200 || !response.data.result) {
       return reply('❌ Unable to fetch the file. Please check the URL and try again.');
     }
 
     // Extract the file details
-    const { filename, size, mimetype, link } = response.data.data;
+    const { downloadUrl, fileName, fileSize, mimetype } = response.data.result;
 
     // Inform the user that the file is being downloaded
-    await reply(`📥 *Downloading ${filename} (${size})... Please wait.*`);
+    await reply(`📥 *Downloading ${fileName} (${fileSize})... Please wait.*`);
 
     // Download the file
-    const fileResponse = await axios.get(link, { responseType: 'arraybuffer' });
+    const fileResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
     if (!fileResponse.data) {
       return reply('❌ Failed to download the file. Please try again later.');
     }
@@ -52,8 +56,8 @@ cmd({
       await conn.sendMessage(from, {
         image: fileBuffer,
         caption: `📥 *File Details*\n\n` +
-          `🔖 *Name*: ${filename}\n` +
-          `📏 *Size*: ${size}\n\n` +
+          `🔖 *Name*: ${fileName}\n` +
+          `📏 *Size*: ${fileSize}\n\n` +
           `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍʀ ғʀᴀɴᴋ`,
         contextInfo: {
           mentionedJid: [m.sender],
@@ -71,8 +75,8 @@ cmd({
       await conn.sendMessage(from, {
         video: fileBuffer,
         caption: `📥 *File Details*\n\n` +
-          `🔖 *Name*: ${filename}\n` +
-          `📏 *Size*: ${size}\n\n` +
+          `🔖 *Name*: ${fileName}\n` +
+          `📏 *Size*: ${fileSize}\n\n` +
           `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍʀ ғʀᴀɴᴋ`,
         contextInfo: {
           mentionedJid: [m.sender],
@@ -90,10 +94,10 @@ cmd({
       await conn.sendMessage(from, {
         document: fileBuffer,
         mimetype: mimetype,
-        fileName: filename,
+        fileName: fileName,
         caption: `📥 *File Details*\n\n` +
-          `🔖 *Name*: ${filename}\n` +
-          `📏 *Size*: ${size}\n\n` +
+          `🔖 *Name*: ${fileName}\n` +
+          `📏 *Size*: ${fileSize}\n\n` +
           `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍʀ ғʀᴀɴᴋ`,
         contextInfo: {
           mentionedJid: [m.sender],

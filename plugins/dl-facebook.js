@@ -2,43 +2,46 @@ const axios = require("axios");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "tiktok",
-  alias: ["ttdl", "tiktokdl","tt"],
+  pattern: "fbdl",
+  alias: ["facebook", "fbvideo"],
   react: '📥',
-  desc: "Download TikTok videos.",
+  desc: "Download videos from Facebook.",
   category: "download",
-  use: ".tiktok <TikTok video URL>",
+  use: ".fbdl <Facebook video URL>",
   filename: __filename
 }, async (conn, mek, m, { from, reply, args }) => {
   try {
-    // Check if the user provided a TikTok video URL
-    const tiktokUrl = args[0];
-    if (!tiktokUrl || !tiktokUrl.includes("tiktok.com")) {
-      return reply('Please provide a valid TikTok video URL. Example: `.tiktok https://tiktok.com/...`');
+    // Check if the user provided a Facebook video URL
+    const fbUrl = args[0];
+    if (!fbUrl || !fbUrl.includes("facebook.com")) {
+      return reply('Please provide a valid Facebook video URL. Example: `.fbdl https://facebook.com/...`');
     }
 
     // Add a reaction to indicate processing
     await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
     // Prepare the API URL
-    const apiUrl = `https://api.nexoracle.com/downloader/tiktok-nowm?apikey=free_key@maher_apis&url=${encodeURIComponent(tiktokUrl)}`;
+    const apiUrl = `https://apis.davidcyriltech.my.id/facebook2?url=${encodeURIComponent(fbUrl)}`;
 
     // Call the API using GET
     const response = await axios.get(apiUrl);
 
     // Check if the API response is valid
-    if (!response.data || response.data.status !== 200 || !response.data.result) {
+    if (!response.data || !response.data.status || !response.data.video) {
       return reply('❌ Unable to fetch the video. Please check the URL and try again.');
     }
 
     // Extract the video details
-    const { title, thumbnail, author, metrics, url } = response.data.result;
+    const { title, thumbnail, downloads } = response.data.video;
+
+    // Get the highest quality download link (HD or SD)
+    const downloadLink = downloads.find(d => d.quality === "HD")?.downloadUrl || downloads[0].downloadUrl;
 
     // Inform the user that the video is being downloaded
-    await reply(`📥 *Downloading TikTok video by @${author.username}... Please wait.*`);
+    await reply('```Downloading video... Please wait.📥```');
 
     // Download the video
-    const videoResponse = await axios.get(url, { responseType: 'arraybuffer' });
+    const videoResponse = await axios.get(downloadLink, { responseType: 'arraybuffer' });
     if (!videoResponse.data) {
       return reply('❌ Failed to download the video. Please try again later.');
     }
@@ -49,13 +52,9 @@ cmd({
     // Send the video with details
     await conn.sendMessage(from, {
       video: videoBuffer,
-      caption: `📥 *TikTok Video*\n\n` +
-        `🔖 *Title*: ${title || "No title"}\n` +
-        `👤 *Author*: @${author.username} (${author.nickname})\n` +
-        `❤️ *Likes*: ${metrics.digg_count}\n` +
-        `💬 *Comments*: ${metrics.comment_count}\n` +
-        `🔁 *Shares*: ${metrics.share_count}\n` +
-        `📥 *Downloads*: ${metrics.download_count}\n\n` +
+      caption: `📥 *Video Details*\n\n` +
+        `🔖 *Title*: ${title}\n` +
+        `📏 *Quality*: ${downloads.find(d => d.quality === "HD") ? "HD" : "SD"}\n\n` +
         `> © Powered by Mr Frank`,
       contextInfo: {
         mentionedJid: [m.sender],
@@ -72,7 +71,7 @@ cmd({
     // Add a reaction to indicate success
     await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
   } catch (error) {
-    console.error('Error downloading TikTok video:', error);
+    console.error('Error downloading video:', error);
     reply('❌ Unable to download the video. Please try again later.');
 
     // Add a reaction to indicate failure

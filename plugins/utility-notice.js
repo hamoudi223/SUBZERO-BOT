@@ -21,7 +21,7 @@ cmd({
     // Check if the user is the owner
     const sender = mek.participant || mek.key.remoteJid; // Get the sender's ID
     if (sender !== OWNER_ID) {
-      return reply("*[❌] You are not authorized to add notices.*");
+      return reply("*[❌] Ooops You are not authorized to add notices, only Mr Frank can.*");
     }
 
     const message = args.join(" ");
@@ -97,7 +97,7 @@ cmd({
     }
 
     // Format the notices into a message
-    let noticeMessage = "⟣┄┅┅〔 𝐒𝐔𝐁𝐙𝐄𝐑𝐎 𝐔𝐏𝐃𝐀𝐓𝐄𝐒 〕┅┈⟢\n\n";
+    let noticeMessage = "⟣┄〔 𝐒𝐔𝐁𝐙𝐄𝐑𝐎 𝐔𝐏𝐃𝐀𝐓𝐄𝐒 〕┅⟢\n\n";
     notices.forEach((notice, index) => {
       noticeMessage += `${index + 1}. ${notice.message}\n`;
     });
@@ -107,7 +107,7 @@ cmd({
 
     // Send the noticeboard with an image (status message)
     await conn.sendMessage(from, {
-      image: { url: `https://i.ibb.co/dsCF80kb/mrfrankofc.jpg` }, // Replace with your image URL
+      image: { url: `https://i.postimg.cc/QMR3dVBd/IMG-20250305-WA0003.jpg` }, // Replace with your image URL
       caption: noticeMessage,
       contextInfo: {
         mentionedJid: [msg.sender],
